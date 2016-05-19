@@ -146,6 +146,10 @@ public class DefaultPushPatientService implements PushPatientService
                 Constants.CODE_SPACE, "PushPatientServer"));
 
             Set<PushServerInfo> response = new TreeSet<PushServerInfo>();
+            if (servers == null || servers.isEmpty()) {
+                return response;
+            }
+
             for (BaseObject serverConfiguration : servers) {
                 if (serverConfiguration == null) {
                     continue;
@@ -160,7 +164,7 @@ public class DefaultPushPatientService implements PushPatientService
             }
             return response;
         } catch (Exception ex) {
-            this.logger.error("Failed to get server list: [{}] {}", ex.getMessage(), ex);
+            this.logger.error("Failed to get server list: {}", ex.getMessage(), ex);
             return Collections.emptySet();
         }
     }
@@ -368,13 +372,14 @@ public class DefaultPushPatientService implements PushPatientService
             null);
     }
 
-    private JSONObject parsePatientStateToJSON(String patientStateString) {
+    private JSONObject parsePatientStateToJSON(String patientStateString)
+    {
         // since the state comes directly from the user side, taking some basic security precautions
         try {
             JSONObject patientState = new JSONObject(patientStateString);
             // server will have to validate received JSON anyway, so only makin gsure we do send a valid JSON
             return patientState;
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             return new JSONObject();
         }
     }

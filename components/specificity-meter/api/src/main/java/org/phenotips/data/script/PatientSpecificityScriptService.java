@@ -32,6 +32,7 @@ import org.xwiki.stability.Unstable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -142,6 +143,18 @@ public class PatientSpecificityScriptService implements ScriptService
         {
             return null;
         }
+
+        @Override
+        public String getPropertyName()
+        {
+            return null;
+        }
+
+        @Override
+        public List<String> getCategories()
+        {
+            return null;
+        }
     }
 
     private static final class FakePatient implements Patient
@@ -219,7 +232,7 @@ public class PatientSpecificityScriptService implements ScriptService
         }
 
         @Override
-        public JSONObject toJSON(Collection<String> onlyFieldNames)
+        public JSONObject toJSON(Collection<String> selectedFields)
         {
             return null;
         }

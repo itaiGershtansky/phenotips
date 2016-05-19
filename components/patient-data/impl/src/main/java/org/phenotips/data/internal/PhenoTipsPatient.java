@@ -21,6 +21,7 @@ import org.phenotips.Constants;
 import org.phenotips.components.ComponentManagerRegistry;
 import org.phenotips.data.Disorder;
 import org.phenotips.data.Feature;
+import org.phenotips.data.FeatureMetadatum;
 import org.phenotips.data.Patient;
 import org.phenotips.data.PatientData;
 import org.phenotips.data.PatientDataController;
@@ -205,18 +206,31 @@ public class PhenoTipsPatient implements Patient
         }
     }
 
-    private boolean isFieldIncluded(Collection<String> includedFieldNames, String fieldName)
+    private boolean isFieldIncluded(Collection<String> selectedFields, String fieldName)
     {
-        return (includedFieldNames == null || includedFieldNames.contains(fieldName));
+        return (selectedFields == null || selectedFields.contains(fieldName));
     }
 
-    private boolean isFieldIncluded(Collection<String> includedFieldNames, String[] fieldNames)
+    private boolean isFieldIncluded(Collection<String> selectedFields, String[] fieldNames)
     {
-        if (includedFieldNames == null) {
+        if (selectedFields == null) {
             return true;
         }
         for (String fieldName : fieldNames) {
-            if (isFieldIncluded(includedFieldNames, fieldName)) {
+            if (isFieldIncluded(selectedFields, fieldName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFieldSuffixIncluded(Collection<String> selectedFields, String fieldSuffix)
+    {
+        if (selectedFields == null) {
+            return true;
+        }
+        for (String fieldName : selectedFields) {
+            if (StringUtils.endsWith(fieldName, fieldSuffix)) {
                 return true;
             }
         }
@@ -280,11 +294,11 @@ public class PhenoTipsPatient implements Patient
     }
 
     /** creates & returns a new JSON array of all patient features (as JSON objects). */
-    private JSONArray featuresToJSON()
+    private JSONArray featuresToJSON(Collection<String> selectedFields)
     {
         JSONArray featuresJSON = new JSONArray();
         for (Feature phenotype : this.features) {
-            if (StringUtils.isBlank(phenotype.getId())) {
+            if (StringUtils.isBlank(phenotype.getId()) || !isFieldIncluded(selectedFields, phenotype.getType())) {
                 continue;
             }
             JSONObject featureJSON = phenotype.toJSON();
@@ -295,11 +309,11 @@ public class PhenoTipsPatient implements Patient
         return featuresJSON;
     }
 
-    private JSONArray nonStandardFeaturesToJSON()
+    private JSONArray nonStandardFeaturesToJSON(Collection<String> selectedFields)
     {
         JSONArray featuresJSON = new JSONArray();
         for (Feature phenotype : this.features) {
-            if (StringUtils.isNotBlank(phenotype.getId())) {
+            if (StringUtils.isNotBlank(phenotype.getId()) || !isFieldIncluded(selectedFields, phenotype.getType())) {
                 continue;
             }
             JSONObject featureJSON = phenotype.toJSON();
@@ -324,29 +338,29 @@ public class PhenoTipsPatient implements Patient
     }
 
     @Override
-    public JSONObject toJSON(Collection<String> onlyFieldNames)
+    public JSONObject toJSON(Collection<String> selectedFields)
     {
         JSONObject result = new JSONObject();
 
-        if (isFieldIncluded(onlyFieldNames, JSON_KEY_ID)) {
+        if (isFieldIncluded(selectedFields, JSON_KEY_ID)) {
             result.put(JSON_KEY_ID, getDocument().getName());
         }
 
-        if (getReporter() != null && isFieldIncluded(onlyFieldNames, JSON_KEY_REPORTER)) {
+        if (getReporter() != null && isFieldIncluded(selectedFields, JSON_KEY_REPORTER)) {
             result.put(JSON_KEY_REPORTER, getReporter().getName());
         }
 
-        if (!this.features.isEmpty() && isFieldIncluded(onlyFieldNames, PHENOTYPE_PROPERTIES)) {
-            result.put(JSON_KEY_FEATURES, featuresToJSON());
-            result.put(JSON_KEY_NON_STANDARD_FEATURES, nonStandardFeaturesToJSON());
+        if (isFieldSuffixIncluded(selectedFields, PHENOTYPE_POSITIVE_PROPERTY)) {
+            result.put(JSON_KEY_FEATURES, featuresToJSON(selectedFields));
+            result.put(JSON_KEY_NON_STANDARD_FEATURES, nonStandardFeaturesToJSON(selectedFields));
         }
 
-        if (!this.disorders.isEmpty() && isFieldIncluded(onlyFieldNames, DISORDER_PROPERTIES)) {
+        if (!this.disorders.isEmpty() && isFieldIncluded(selectedFields, DISORDER_PROPERTIES)) {
             result.put(JSON_KEY_DISORDERS, diseasesToJSON());
         }
 
         for (PatientDataController<?> serializer : this.serializers.values()) {
-            serializer.writeJSON(this, result, onlyFieldNames);
+            serializer.writeJSON(this, result, selectedFields);
         }
 
         return result;
@@ -358,10 +372,6 @@ public class PhenoTipsPatient implements Patient
         try {
             JSONArray jsonFeatures =
                 joinArrays(json.optJSONArray(JSON_KEY_FEATURES), json.optJSONArray(JSON_KEY_NON_STANDARD_FEATURES));
-
-            if (jsonFeatures.length() == 0) {
-                return;
-            }
 
             // keep this instance of PhenotipsPatient in sync with the document: reset features
             this.features = new TreeSet<Feature>();
@@ -394,14 +404,64 @@ public class PhenoTipsPatient implements Patient
             // as in constructor: make unmodifiable
             this.features = Collections.unmodifiableSet(this.features);
 
-            // update the values in the document (overwriting the old list, if any)
+            // to reset values in the document null them first
+            for (String type : PHENOTYPE_PROPERTIES) {
+                data.set(type, null, context);
+            }
+
             for (String type : featuresMap.keySet()) {
                 data.set(type, featuresMap.get(type), context);
             }
+
+            // update features' metadata objects in document
+            updateMetaData(doc, context);
+
+            // update features' categories objects in document
+            updateCategories(doc, context);
+
             context.getWiki().saveDocument(doc, "Updated features from JSON", true, context);
 
         } catch (Exception ex) {
             this.logger.warn("Failed to update patient features from JSON [{}]: {}", ex.getMessage(), ex);
+        }
+    }
+
+    private void updateMetaData(XWikiDocument doc, XWikiContext context) throws XWikiException
+    {
+        doc.removeXObjects(FeatureMetadatum.CLASS_REFERENCE);
+        for (Feature feature : this.features) {
+            @SuppressWarnings("unchecked")
+            Map<String, FeatureMetadatum> metadataMap = (Map<String, FeatureMetadatum>) feature.getMetadata();
+            if (metadataMap.isEmpty() && feature.getNotes().isEmpty()) {
+                continue;
+            }
+
+            BaseObject metaObject = doc.newXObject(FeatureMetadatum.CLASS_REFERENCE, context);
+            metaObject.set(PhenoTipsFeature.META_PROPERTY_NAME, feature.getPropertyName(),
+                context);
+            metaObject.set(PhenoTipsFeature.META_PROPERTY_VALUE, feature.getValue(), context);
+            for (String type : metadataMap.keySet()) {
+                PhenoTipsFeatureMetadatum metadatum = (PhenoTipsFeatureMetadatum) metadataMap.get(type);
+                metaObject.set(type, metadatum.getId(), context);
+            }
+            metaObject.set("comments", feature.getNotes(), context);
+        }
+    }
+
+    private void updateCategories(XWikiDocument doc, XWikiContext context) throws XWikiException
+    {
+        doc.removeXObjects(PhenoTipsFeature.CATEGORY_CLASS_REFERENCE);
+        for (Feature feature : this.features) {
+            List<String> categories = feature.getCategories();
+            if (categories.isEmpty()) {
+                continue;
+            }
+
+            BaseObject categoriesObject = doc.newXObject(PhenoTipsFeature.CATEGORY_CLASS_REFERENCE, context);
+            categoriesObject.set(PhenoTipsFeature.META_PROPERTY_NAME, feature.getPropertyName(),
+                context);
+            categoriesObject.set(PhenoTipsFeature.META_PROPERTY_VALUE, feature.getValue(), context);
+            categoriesObject.set(PhenoTipsFeature.META_PROPERTY_CATEGORIES, categories, context);
         }
     }
 
@@ -459,6 +519,10 @@ public class PhenoTipsPatient implements Patient
     @Override
     public void updateFromJSON(JSONObject json)
     {
+        if (json.length() == 0) {
+            return;
+        }
+
         try {
             // TODO: Check versions and throw if versions mismatch if necessary
             // TODO: Separate updateFromJSON and saveToDB? Move to PatientRepository?

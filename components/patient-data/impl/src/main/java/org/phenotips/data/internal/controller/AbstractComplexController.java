@@ -127,7 +127,7 @@ public abstract class AbstractComplexController<T> implements PatientDataControl
             Map.Entry<String, T> item = iterator.next();
             String itemKey = item.getKey();
             Object formattedValue = format(itemKey, item.getValue());
-            if (formattedValue != null && (selectedFieldNames == null || selectedFieldNames.contains(item.getKey()))) {
+            if (selectedFieldNames == null || selectedFieldNames.contains(getControllingFieldName(item.getKey()))) {
                 if (container == null) {
                     // put() is placed here because we want to create the property iff at least one field is set/enabled
                     json.put(getJsonPropertyName(), new JSONObject());
@@ -136,6 +136,14 @@ public abstract class AbstractComplexController<T> implements PatientDataControl
                 container.put(itemKey, formattedValue);
             }
         }
+    }
+
+    /**
+     * @return name of controlling field which is responsible for export fields grouping
+     */
+    protected String getControllingFieldName(String field)
+    {
+        return field;
     }
 
     /**
@@ -176,8 +184,7 @@ public abstract class AbstractComplexController<T> implements PatientDataControl
     @SuppressWarnings("unchecked")
     private Object format(String key, Object value)
     {
-        if (value == null || "Unknown".equals(value)
-            || (value instanceof Collection && ((Collection<?>) value).isEmpty())) {
+        if (value == null || "Unknown".equals(value)) {
             return null;
         }
         if (getBooleanFields().contains(key)) {
@@ -294,7 +301,8 @@ public abstract class AbstractComplexController<T> implements PatientDataControl
                     List<VocabularyProperty> terms = (List<VocabularyProperty>) propertyValue;
                     List<String> listToStore = new LinkedList<>();
                     for (VocabularyProperty term : terms) {
-                        listToStore.add(term.getId());
+                        String name = StringUtils.isNotBlank(term.getId()) ? term.getId() : term.getName();
+                        listToStore.add(name);
                     }
                     dataHolder.set(propertyName, listToStore, context);
                 } else {

@@ -1260,7 +1260,7 @@
             if (form) {
                 // 1) get the list of selected data columns from the form
                 var selectedFields = [];
-                var fields = form.down('ul.field-list');
+                var fields = form.down('.push-fields');
                 var checkboxes = fields.select('input[name="columns"]');
                 checkboxes.each(function(item) {
                     if (item.checked) {
@@ -1442,6 +1442,24 @@ function _printObjectInternal(o, level) {
     <property>
       <code>#template("colorThemeInit.vm")
 
+/* disable yellow background on hover - only for push */
+.narrow-export-dialog.export-dialog .section:hover {
+  background-color: inherit !important;
+}
+
+/* filed selection dialogue has more space when used for pushing, so increase some margins for better visual separation of elements */
+.narrow-export-dialog.export-dialog .section .selection-tools {
+  margin: 0 0 1.5em !important;
+}
+
+.section-name-header:hover {
+  color: $theme.linkColor;
+}
+
+.export-dialog .field-list {
+  margin: -0.2em 0 0 1em !important;
+}
+
 #push-patients-ui td {
   border: 0 none;
   padding: .3em;
@@ -1573,13 +1591,9 @@ function _printObjectInternal(o, level) {
   margin-top: 0.75em;
   margin-right: 3em;
 }
-.push-fields {
-  margin-left: 2em !important;
-  margin-bottom: 1.5em !important;
-  width: 90% !important;
-}
 .narrow-export-dialog.export-dialog {
   width: 60% !important;
+  max-width: 1000px;
 }
 .loading-indicator-large {
   background: url("$xwiki.getSkinFile('icons/xwiki/ajax-loader-large.gif')") no-repeat center center;
@@ -1678,7 +1692,8 @@ function _printObjectInternal(o, level) {
 $xwiki.jsfx.use('js/scriptaculous/dragdrop.js')##
 $xwiki.jsx.use('PhenoTips.PushPatient')##
 $xwiki.ssx.use('PhenoTips.PushPatient')##
-$xwiki.ssx.use('PhenoTips.DBWebHomeSheet')##
+$xwiki.jsfx.use('uicomponents/widgets/exportData.js', true)####
+$xwiki.ssfx.use('uicomponents/widgets/exportData.css', true)####
 #set ($service = $services.pushPatient)
 #set ($configuredServers = $service.getPushTargetsWithHistory(""))
 #foreach ($mapEntry in $configuredServers.entrySet())
