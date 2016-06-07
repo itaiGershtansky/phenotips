@@ -34,6 +34,7 @@ import javax.inject.Singleton;
 
 /**
  * @version $Id$
+ * @since 1.0M9
  */
 @Component
 @Named("permissions")
@@ -43,9 +44,36 @@ public class PermissionsManagerScriptService implements ScriptService
     @Inject
     private PermissionsManager manager;
 
+    /**
+     * Get the visibility options available, excluding {@link Visibility#isDisabled() disabled} ones.
+     *
+     * @return a collection of enabled visibilities, may be empty if none are enabled
+     */
     public Collection<Visibility> listVisibilityOptions()
     {
         return this.manager.listVisibilityOptions();
+    }
+
+    /**
+     * Get all visibility options available in the platform, including {@link Visibility#isDisabled() disabled} ones.
+     *
+     * @return a collection of visibilities, may be empty if none are available
+     * @since 1.3M2
+     */
+    public Collection<Visibility> listAllVisibilityOptions()
+    {
+        return this.manager.listAllVisibilityOptions();
+    }
+
+    /**
+     * Get the default visibility to set for new patient records.
+     *
+     * @return a visibility, or {@code null} if none is configured or the configured one isn't valid
+     * @since 1.3M2
+     */
+    public Visibility getDefaultVisibility()
+    {
+        return this.manager.getDefaultVisibility();
     }
 
     public Visibility resolveVisibility(String name)

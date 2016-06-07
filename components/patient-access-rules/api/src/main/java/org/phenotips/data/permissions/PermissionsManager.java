@@ -32,7 +32,28 @@ import java.util.Collection;
 @Role
 public interface PermissionsManager
 {
+    /**
+     * Get the visibility options available, excluding {@link Visibility#isDisabled() disabled} ones.
+     *
+     * @return a collection of enabled visibilities, may be empty if none are enabled
+     */
     Collection<Visibility> listVisibilityOptions();
+
+    /**
+     * Get all visibility options available in the platform, including {@link Visibility#isDisabled() disabled} ones.
+     *
+     * @return a collection of visibilities, may be empty if none are available
+     * @since 1.3M2
+     */
+    Collection<Visibility> listAllVisibilityOptions();
+
+    /**
+     * Get the default visibility to set for new patient records.
+     *
+     * @return a visibility, or {@code null} if none is configured or the configured one isn't valid
+     * @since 1.3M2
+     */
+    Visibility getDefaultVisibility();
 
     Visibility resolveVisibility(String name);
 

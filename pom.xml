@@ -392,6 +392,25 @@
             </difference>
 
             <difference>
+              <className>org/phenotips/data/permissions/PermissionsManager</className>
+              <differenceType>7012</differenceType>
+              <method>java.util.Collection listAllVisibilityOptions()</method>
+              <justification>New methods in support of disabled visibilities.</justification>
+            </difference>
+            <difference>
+              <className>org/phenotips/data/permissions/PermissionsManager</className>
+              <differenceType>7012</differenceType>
+              <method>org.phenotips.data.permissions.Visibility getDefaultVisibility()</method>
+              <justification>New API method.</justification>
+            </difference>
+            <difference>
+              <className>org/phenotips/data/permissions/Visibility</className>
+              <differenceType>7012</differenceType>
+              <method>boolean isDisabled()</method>
+              <justification>New methods in support of disabled visibilities.</justification>
+            </difference>
+
+            <difference>
               <className>**</className>
               <differenceType>7006</differenceType>
               <method>net.sf.json.* toJSON(*)</method>
@@ -531,6 +550,12 @@
               <differenceType>7012</differenceType>
               <method>java.util.List getCategories()</method>
               <justification>New methods for extending pushable data</justification>
+            </difference>
+            <difference>
+              <className>org/phenotips/configuration/RecordSection</className>
+              <differenceType>7012</differenceType>
+              <method>boolean isExpandedByDefault()</method>
+              <justification>New methods for configuring which sections should be collapsed and expanded in edit mode by default</justification>
             </difference>
           </ignored>
           <excludes>

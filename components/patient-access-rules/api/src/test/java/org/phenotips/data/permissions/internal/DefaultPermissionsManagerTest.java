@@ -27,8 +27,7 @@ import org.phenotips.data.permissions.internal.access.ManageAccessLevel;
 import org.phenotips.data.permissions.internal.access.NoAccessLevel;
 import org.phenotips.data.permissions.internal.access.OwnerAccessLevel;
 import org.phenotips.data.permissions.internal.access.ViewAccessLevel;
-import org.phenotips.data.permissions.internal.visibility.PrivateVisibility;
-import org.phenotips.data.permissions.internal.visibility.PublicVisibility;
+import org.phenotips.data.permissions.internal.visibility.MockVisibility;
 
 import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.component.manager.ComponentManager;
@@ -58,31 +57,42 @@ public class DefaultPermissionsManagerTest
     public final MockitoComponentMockingRule<PermissionsManager> mocker =
         new MockitoComponentMockingRule<PermissionsManager>(DefaultPermissionsManager.class);
 
+    private AccessLevel none = new NoAccessLevel();
+
+    private AccessLevel view = new ViewAccessLevel();
+
+    private AccessLevel edit = new EditAccessLevel();
+
+    private AccessLevel manage = new ManageAccessLevel();
+
+    private AccessLevel owner = new OwnerAccessLevel();
+
+    private Visibility privateVisibility = new MockVisibility("private", 0, this.none);
+
+    private Visibility publicVisibility = new MockVisibility("public", 50, this.view);
+
+    private Visibility disabledOpenVisibility = new MockVisibility("open", 80, this.edit, true);
+
     /** Basic tests for {@link PermissionsManager#listAccessLevels()}. */
     @Test
     public void listAccessLevels() throws ComponentLookupException
     {
         ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
-        AccessLevel none = new NoAccessLevel();
-        AccessLevel view = new ViewAccessLevel();
-        AccessLevel edit = new EditAccessLevel();
-        AccessLevel manage = new ManageAccessLevel();
-        AccessLevel owner = new OwnerAccessLevel();
-        List<AccessLevel> levels = new ArrayList<AccessLevel>();
-        levels.add(edit);
-        levels.add(none);
-        levels.add(owner);
-        levels.add(view);
-        levels.add(manage);
+        List<AccessLevel> levels = new ArrayList<>();
+        levels.add(this.edit);
+        levels.add(this.none);
+        levels.add(this.owner);
+        levels.add(this.view);
+        levels.add(this.manage);
         when(cm.<AccessLevel>getInstanceList(AccessLevel.class)).thenReturn(levels);
         Collection<AccessLevel> returnedLevels = this.mocker.getComponentUnderTest().listAccessLevels();
         Assert.assertEquals(3, returnedLevels.size());
         Iterator<AccessLevel> it = returnedLevels.iterator();
-        Assert.assertSame(view, it.next());
-        Assert.assertSame(edit, it.next());
-        Assert.assertSame(manage, it.next());
-        Assert.assertFalse(returnedLevels.contains(none));
-        Assert.assertFalse(returnedLevels.contains(owner));
+        Assert.assertSame(this.view, it.next());
+        Assert.assertSame(this.edit, it.next());
+        Assert.assertSame(this.manage, it.next());
+        Assert.assertFalse(returnedLevels.contains(this.none));
+        Assert.assertFalse(returnedLevels.contains(this.owner));
     }
 
     /** {@link PermissionsManager#listAccessLevels()} returns an empty list when no implementations available. */
@@ -117,7 +127,7 @@ public class DefaultPermissionsManagerTest
 
     /** {@link PermissionsManager#resolveAccessLevel(String)} returns null if an unknown level is requested. */
     @Test
-    public void resolveAccessLevelWithUnknownAccessTest() throws ComponentLookupException
+    public void resolveAccessLevelWithUnknownAccess() throws ComponentLookupException
     {
         ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
         when(cm.getInstance(AccessLevel.class, "unknown")).thenThrow(new ComponentLookupException("No such component"));
@@ -133,30 +143,71 @@ public class DefaultPermissionsManagerTest
         Assert.assertNull(this.mocker.getComponentUnderTest().resolveAccessLevel(" "));
     }
 
-    /** Basic tests for {@link PermissionsManager#listVisibilityOptions()}. */
+    /** Basic test for {@link PermissionsManager#listVisibilityOptions()}. */
     @Test
-    public void listVisibilityOptions() throws ComponentLookupException
+    public void listVisibilityOptionsSkipsDisabledVisibilitiesAndReordersByPriority() throws ComponentLookupException
     {
         ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
-        Visibility privateV = new PrivateVisibility();
-        Visibility publicV = new PublicVisibility();
-        List<Visibility> visibilities = new ArrayList<Visibility>();
-        visibilities.add(publicV);
-        visibilities.add(privateV);
+        List<Visibility> visibilities = new ArrayList<>();
+        visibilities.add(this.publicVisibility);
+        visibilities.add(this.privateVisibility);
+        visibilities.add(this.disabledOpenVisibility);
         when(cm.<Visibility>getInstanceList(Visibility.class)).thenReturn(visibilities);
         Collection<Visibility> returnedVisibilities = this.mocker.getComponentUnderTest().listVisibilityOptions();
         Assert.assertEquals(2, returnedVisibilities.size());
         Iterator<Visibility> it = returnedVisibilities.iterator();
-        Assert.assertSame(privateV, it.next());
-        Assert.assertSame(publicV, it.next());
+        Assert.assertSame(this.privateVisibility, it.next());
+        Assert.assertSame(this.publicVisibility, it.next());
+    }
+
+    /** Basic test for {@link PermissionsManager#listAllVisibilityOptions()}. */
+    @Test
+    public void listAllVisibilityOptionsReordersByPriority() throws ComponentLookupException
+    {
+        ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
+        List<Visibility> visibilities = new ArrayList<>();
+        visibilities.add(this.publicVisibility);
+        visibilities.add(this.privateVisibility);
+        visibilities.add(this.disabledOpenVisibility);
+        when(cm.<Visibility>getInstanceList(Visibility.class)).thenReturn(visibilities);
+        Collection<Visibility> returnedVisibilities = this.mocker.getComponentUnderTest().listAllVisibilityOptions();
+        Assert.assertEquals(3, returnedVisibilities.size());
+        Iterator<Visibility> it = returnedVisibilities.iterator();
+        Assert.assertSame(this.privateVisibility, it.next());
+        Assert.assertSame(this.publicVisibility, it.next());
+        Assert.assertSame(this.disabledOpenVisibility, it.next());
     }
 
     /** {@link PermissionsManager#listVisibilityOptions()} returns an empty list when no implementations available. */
     @Test
-    public void listVisibilityOptionsWithNoComponents() throws ComponentLookupException
+    public void listVisibilityOptionsWithNoComponentsEmptyList() throws ComponentLookupException
     {
         ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
         when(cm.<Visibility>getInstanceList(Visibility.class)).thenReturn(Collections.<Visibility>emptyList());
+        Collection<Visibility> returnedVisibilities = this.mocker.getComponentUnderTest().listVisibilityOptions();
+        Assert.assertTrue(returnedVisibilities.isEmpty());
+    }
+
+    /**
+     * {@link PermissionsManager#listAllVisibilityOptions()} returns an empty list when no implementations available.
+     */
+    @Test
+    public void listAllVisibilityOptionsWithNoComponentsReturnsEmptyList() throws ComponentLookupException
+    {
+        ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
+        when(cm.<Visibility>getInstanceList(Visibility.class)).thenReturn(Collections.<Visibility>emptyList());
+        Collection<Visibility> returnedVisibilities = this.mocker.getComponentUnderTest().listAllVisibilityOptions();
+        Assert.assertTrue(returnedVisibilities.isEmpty());
+    }
+
+    /** {@link PermissionsManager#listVisibilityOptions()} returns an empty list when all visibilities are disabled. */
+    @Test
+    public void listVisibilityOptionsWithOnlyDisabledVisibilitiesReturnsEmptyList() throws ComponentLookupException
+    {
+        ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
+        List<Visibility> visibilities = new ArrayList<>();
+        visibilities.add(this.disabledOpenVisibility);
+        when(cm.<Visibility>getInstanceList(Visibility.class)).thenReturn(visibilities);
         Collection<Visibility> returnedVisibilities = this.mocker.getComponentUnderTest().listVisibilityOptions();
         Assert.assertTrue(returnedVisibilities.isEmpty());
     }
@@ -176,9 +227,8 @@ public class DefaultPermissionsManagerTest
     public void resolveVisibility() throws ComponentLookupException
     {
         ComponentManager cm = this.mocker.getInstance(ComponentManager.class, "context");
-        Visibility publicV = mock(Visibility.class);
-        when(cm.getInstance(Visibility.class, "public")).thenReturn(publicV);
-        Assert.assertSame(publicV, this.mocker.getComponentUnderTest().resolveVisibility("public"));
+        when(cm.getInstance(Visibility.class, "public")).thenReturn(this.publicVisibility);
+        Assert.assertSame(this.publicVisibility, this.mocker.getComponentUnderTest().resolveVisibility("public"));
     }
 
     /** {@link PermissionsManager#resolveVisibility(String)} returns null if a null or blank visibility is requested. */

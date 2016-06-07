@@ -20,6 +20,7 @@ package org.phenotips.data.permissions.internal;
 import org.phenotips.data.Patient;
 import org.phenotips.data.permissions.AccessLevel;
 import org.phenotips.data.permissions.PatientAccess;
+import org.phenotips.data.permissions.PermissionsConfiguration;
 import org.phenotips.data.permissions.PermissionsManager;
 import org.phenotips.data.permissions.Visibility;
 
@@ -54,16 +55,37 @@ public class DefaultPermissionsManager implements PermissionsManager
     @Named("context")
     private Provider<ComponentManager> componentManager;
 
+    @Inject
+    private PermissionsConfiguration configuration;
+
     @Override
     public Collection<Visibility> listVisibilityOptions()
     {
+        Collection<Visibility> result = new TreeSet<>();
+        for (Visibility visibility : listAllVisibilityOptions()) {
+            if (!visibility.isDisabled()) {
+                result.add(visibility);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public Collection<Visibility> listAllVisibilityOptions()
+    {
         try {
-            Collection<Visibility> result = new TreeSet<Visibility>();
+            Collection<Visibility> result = new TreeSet<>();
             result.addAll(this.componentManager.get().<Visibility>getInstanceList(Visibility.class));
             return result;
         } catch (ComponentLookupException ex) {
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public Visibility getDefaultVisibility()
+    {
+        return resolveVisibility(this.configuration.getDefaultVisibility());
     }
 
     @Override
@@ -83,7 +105,7 @@ public class DefaultPermissionsManager implements PermissionsManager
     public Collection<AccessLevel> listAccessLevels()
     {
         try {
-            Collection<AccessLevel> result = new TreeSet<AccessLevel>();
+            Collection<AccessLevel> result = new TreeSet<>();
             result.addAll(this.componentManager.get().<AccessLevel>getInstanceList(AccessLevel.class));
             Iterator<AccessLevel> it = result.iterator();
             while (it.hasNext()) {
